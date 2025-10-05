@@ -12,8 +12,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  // **NEW: State variable to toggle between Login and Sign Up**
+  // State variable to toggle between Login and Sign Up
   bool _isLoginMode = true;
+  bool _isPasswordVisible = false;
 
   @override
   void dispose() {
@@ -26,6 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final authViewModel = context.read<AuthViewModel>();
+
+    // if (email.isEmpty || password.isEmpty) {
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //         const SnackBar(content: Text('Please fill in both fields.')),
+    //     );
+    //     return;
+    // }
 
     if (_isLoginMode) {
       authViewModel.signIn(email, password);
@@ -40,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        // **NEW: Dynamic title**
+        // Dynamic title
         title: Text(_isLoginMode ? 'PeerLink Login' : 'Create Account'),
       ),
       body: Padding(
@@ -53,30 +61,67 @@ class _LoginScreenState extends State<LoginScreen> {
               decoration: const InputDecoration(labelText: 'College Email'),
               keyboardType: TextInputType.emailAddress,
             ),
+
             const SizedBox(height: 8),
+
             TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(labelText: 'Password'),
-              obscureText: true,
+              obscureText: !_isPasswordVisible,
+              decoration: InputDecoration(
+                labelText: 'Password',
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isPasswordVisible
+                        ? Icons.visibility
+                        : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    });
+                  },
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 8),
+
+            if (authViewModel.errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: Text(
+                  authViewModel.errorMessage!,
+                  style: const TextStyle(color: Colors.red, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
             authViewModel.status == AuthStatus.authenticating
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _submitForm,
-                    // **NEW: Dynamic button text**
+                    // Dynamic button text
                     child: Text(_isLoginMode ? 'Login' : 'Sign Up'),
                   ),
-            // **NEW: Button to switch modes**
+
+            // Button to switch modes
             TextButton(
               onPressed: () {
+                context.read<AuthViewModel>().clearError();
+                _emailController.clear();
+                _passwordController.clear();
+
                 setState(() {
                   _isLoginMode = !_isLoginMode;
                 });
               },
-              child: Text(_isLoginMode
-                  ? 'Don\'t have an account? Sign Up'
-                  : 'Already have an account? Login'),
+              child: Text(
+                _isLoginMode
+                    ? 'Don\'t have an account? Sign Up'
+                    : 'Already have an account? Login',
+              ),
             ),
           ],
         ),

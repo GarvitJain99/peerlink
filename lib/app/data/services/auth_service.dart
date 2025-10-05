@@ -1,6 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:peerlink/app/data/models/user_model.dart';
 
+class InvalidEmailFormatException implements Exception {
+  final String message;
+  InvalidEmailFormatException(this.message);
+}
+
 class AuthService {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
@@ -17,32 +22,42 @@ class AuthService {
     return AppUser(uid: user.uid, email: user.email ?? '');
   }
 
-  // Sign in with email and password
+  // Log in with email and password
   Future<AppUser?> signInWithEmailAndPassword(String email, String password) async {
+    final emailRegex = RegExp(r'^[a-zA-Z]+\.[a-zA-Z0-9]+@mnnit\.ac\.in$');
+
+    // 2. Validate the email format before calling Firebase
+    if (!emailRegex.hasMatch(email)) {
+      throw InvalidEmailFormatException('Invalid email format. Must be firstname.regno@mnnit.ac.in');
+    }
     try {
       final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       return _userFromFirebase(userCredential.user);
-    } on FirebaseAuthException catch (e) {
-      print('Sign in failed: ${e.message}');
-      return null;
+    } on FirebaseAuthException {
+      rethrow;
     }
   }
 
-  // **NEW METHOD: Sign up with email and password**
+  // Sign up with email and password
   Future<AppUser?> signUpWithEmailAndPassword(String email, String password) async {
+    final emailRegex = RegExp(r'^[a-zA-Z]+\.[a-zA-Z0-9]+@mnnit\.ac\.in$');
+
+    // 2. Validate the email format before calling Firebase
+    if (!emailRegex.hasMatch(email)) {
+      throw InvalidEmailFormatException('Invalid email format. Must be firstname.regno@mnnit.ac.in');
+    }
     try {
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       return _userFromFirebase(userCredential.user);
-    } on FirebaseAuthException catch (e) {
+    } on FirebaseAuthException {
       // Handle errors (e.g., weak password, email already in use)
-      print('Sign up failed: ${e.message}');
-      return null;
+      rethrow;
     }
   }
 
