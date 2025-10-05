@@ -19,22 +19,29 @@ class AuthService {
     if (user == null) {
       return null;
     }
-    return AppUser(uid: user.uid, email: user.email ?? '');
+    return AppUser(uid: user.uid, email: user.email ?? '', isEmailVerified: user.emailVerified,);
   }
 
   // Log in with email and password
-  Future<AppUser?> signInWithEmailAndPassword(String email, String password) async {
+  Future<AppUser?> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     final emailRegex = RegExp(r'^[a-zA-Z]+\.[a-zA-Z0-9]+@mnnit\.ac\.in$');
 
-    // 2. Validate the email format before calling Firebase
     if (!emailRegex.hasMatch(email)) {
-      throw InvalidEmailFormatException('Invalid email format. Must be firstname.regno@mnnit.ac.in');
+      throw InvalidEmailFormatException(
+        'Invalid email format. Must be firstname.regno@mnnit.ac.in',
+      );
     }
     try {
       final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      if (userCredential.user != null) {
+        await userCredential.user!.sendEmailVerification();
+      }
       return _userFromFirebase(userCredential.user);
     } on FirebaseAuthException {
       rethrow;
@@ -42,12 +49,17 @@ class AuthService {
   }
 
   // Sign up with email and password
-  Future<AppUser?> signUpWithEmailAndPassword(String email, String password) async {
+  Future<AppUser?> signUpWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     final emailRegex = RegExp(r'^[a-zA-Z]+\.[a-zA-Z0-9]+@mnnit\.ac\.in$');
 
-    // 2. Validate the email format before calling Firebase
+    // Validate the email format before calling Firebase
     if (!emailRegex.hasMatch(email)) {
-      throw InvalidEmailFormatException('Invalid email format. Must be firstname.regno@mnnit.ac.in');
+      throw InvalidEmailFormatException(
+        'Invalid email format. Must be firstname.regno@mnnit.ac.in',
+      );
     }
     try {
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(

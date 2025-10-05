@@ -5,6 +5,7 @@ import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
 import 'package:peerlink/app/presentation/auth/screens/login_screen.dart';
 import 'package:peerlink/app/presentation/discovery/screens/discovery_screen.dart';
+import 'package:peerlink/app/presentation/auth/screens/verify_email_screen.dart';
 
 void main() async {
   // Ensure Flutter's widget binding is initialized before any async operations
@@ -51,17 +52,20 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final authViewModel = context.watch<AuthViewModel>();
 
-    switch (authViewModel.status) {
-      case AuthStatus.authenticated:
+    if (authViewModel.status == AuthStatus.authenticated) {
+      if (authViewModel.isEmailVerified) {
         return const DiscoveryScreen();
-      case AuthStatus.unauthenticated:
-        return const LoginScreen();
-      default: // Covers uninitialized and authenticating states
-        return const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
+      } else {
+        return const VerifyEmailScreen();
+      }
+    } else if (authViewModel.status == AuthStatus.unauthenticated) {
+      return const LoginScreen();
+    } else {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
   }
 }

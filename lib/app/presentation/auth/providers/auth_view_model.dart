@@ -13,19 +13,42 @@ class AuthViewModel extends ChangeNotifier {
   final AuthService _authService = AuthService();
   AuthStatus _status = AuthStatus.uninitialized;
   String? _errorMessage;
+  bool _isEmailVerified = false;
 
   AuthStatus get status => _status;
   String? get errorMessage => _errorMessage;
+  bool get isEmailVerified => _isEmailVerified;
 
   AuthViewModel() {
     _authService.authStateChanges.listen((user) {
-      if (user == null) {
-        _status = AuthStatus.unauthenticated;
-      } else {
-        _status = AuthStatus.authenticated;
-      }
+    if (user != null) {
+      _isEmailVerified = user.isEmailVerified; 
+      _status = AuthStatus.authenticated;
+    } else { 
+      _isEmailVerified = false;
+      _status = AuthStatus.unauthenticated;
+    }
+    notifyListeners();
+  });
+  }
+
+  Future<void> checkEmailVerification() async {
+    await FirebaseAuth.instance.currentUser?.reload();
+    final isVerified = FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+    
+    if (isVerified != _isEmailVerified) {
+      _isEmailVerified = isVerified;
       notifyListeners();
-    });
+    }
+  }
+
+  Future<void> sendVerificationEmail() async {
+    try {
+      await FirebaseAuth.instance.currentUser?.sendEmailVerification();
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = e.message;
+      notifyListeners();
+    }
   }
 
   void clearError() {
