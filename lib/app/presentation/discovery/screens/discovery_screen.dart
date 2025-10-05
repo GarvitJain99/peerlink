@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
-import 'package:permission_handler/permission_handler.dart'; // Import the package
+import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart'; // Import new widget
+import 'package:permission_handler/permission_handler.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
@@ -17,21 +18,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     super.initState();
     _requestPermissionsAndStartScanning();
   }
-  
-  // NEW METHOD to handle permissions
+
   Future<void> _requestPermissionsAndStartScanning() async {
-    // Request multiple permissions at once
     await [
       Permission.location,
       Permission.bluetooth,
       Permission.bluetoothAdvertise,
       Permission.bluetoothConnect,
       Permission.bluetoothScan,
-      Permission.nearbyWifiDevices, // For Android 13 and above
+      Permission.nearbyWifiDevices,
     ].request();
     
-    // After permissions are handled, start scanning
-    // We pass a placeholder name for now. Later, this will be the user's actual name/ID.
     if (mounted) {
        context.read<DiscoveryViewModel>().startScanning("MyDeviceName");
     }
@@ -39,15 +36,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   @override
   void dispose() {
-    // Stop scanning when the screen is disposed to save battery
-    // Using context in dispose is tricky, so we find the provider without it.
     Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // ... the rest of your build method remains exactly the same
     final authViewModel = context.read<AuthViewModel>();
     final discoveryViewModel = context.watch<DiscoveryViewModel>();
 
@@ -63,7 +57,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           )
         ],
       ),
-      body: discoveryViewModel.peers.isEmpty
+      body: discoveryViewModel.isScanning && discoveryViewModel.peers.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -78,13 +72,29 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               itemCount: discoveryViewModel.peers.length,
               itemBuilder: (context, index) {
                 final peer = discoveryViewModel.peers[index];
-                return ListTile(
-                  leading: const Icon(Icons.phone_android),
-                  title: Text(peer.name),
-                  subtitle: Text(peer.status.toString().split('.').last),
+                // Use our new, beautiful widget!
+                return PeerListItem(
+                  peer: peer,
+                  onConnect: () {
+                    // We will implement connection logic here in the next step
+                    print('Connecting to ${peer.name}...');
+                  },
                 );
               },
             ),
+      // Add a FloatingActionButton to start/stop scanning
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          if (discoveryViewModel.isScanning) {
+            discoveryViewModel.stopScanning();
+          } else {
+            // We use the same name for now
+            discoveryViewModel.startScanning("MyDeviceName");
+          }
+        },
+        label: Text(discoveryViewModel.isScanning ? 'Stop' : 'Scan'),
+        icon: Icon(discoveryViewModel.isScanning ? Icons.stop : Icons.search),
+      ),
     );
   }
 }
