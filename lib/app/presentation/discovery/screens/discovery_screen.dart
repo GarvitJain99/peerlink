@@ -13,6 +13,8 @@ class DiscoveryScreen extends StatefulWidget {
 }
 
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
+  String _ownDeviceName = 'My Device';
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +60,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       deviceName = _formatDeviceName(currentUser.email);
     }
 
+    setState(() {
+      _ownDeviceName = deviceName;
+    });
+
     context.read<DiscoveryViewModel>().startScanning(deviceName);
   }
 
@@ -84,29 +90,63 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           ),
         ],
       ),
-      body: discoveryViewModel.isScanning && discoveryViewModel.peers.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  const Text('Looking for nearby peers...'),
-                ],
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            margin: const EdgeInsets.all(16.0),
+            elevation: 4,
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: const Icon(Icons.person),
               ),
-            )
-          : ListView.builder(
-              itemCount: discoveryViewModel.peers.length,
-              itemBuilder: (context, index) {
-                final peer = discoveryViewModel.peers[index];
-                return PeerListItem(
-                  peer: peer,
-                  onConnect: () {
-                    print('Connecting to ${peer.name}...');
-                  },
-                );
-              },
+              title: Text(
+                _ownDeviceName,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: const Text('You'),
             ),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              'NEARBY PEERS',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+            ),
+          ),
+          const Divider(indent: 16, endIndent: 16),
+
+          Expanded(
+            child:
+                discoveryViewModel.isScanning &&
+                    discoveryViewModel.peers.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Looking for nearby peers...'),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: discoveryViewModel.peers.length,
+                    itemBuilder: (context, index) {
+                      final peer = discoveryViewModel.peers[index];
+                      return PeerListItem(
+                        peer: peer,
+                        onConnect: () {
+                          print('Connecting to ${peer.name}...');
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
       // FloatingActionButton to start/stop scanning
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
