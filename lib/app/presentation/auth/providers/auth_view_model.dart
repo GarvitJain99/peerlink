@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:peerlink/app/data/models/user_model.dart';
 import 'package:peerlink/app/data/services/auth_service.dart';
 
 enum AuthStatus {
@@ -14,13 +15,16 @@ class AuthViewModel extends ChangeNotifier {
   AuthStatus _status = AuthStatus.uninitialized;
   String? _errorMessage;
   bool _isEmailVerified = false;
+  AppUser? _currentUser;
 
   AuthStatus get status => _status;
   String? get errorMessage => _errorMessage;
   bool get isEmailVerified => _isEmailVerified;
+  AppUser? get currentUser => _currentUser;
 
   AuthViewModel() {
     _authService.authStateChanges.listen((user) {
+      _currentUser = user;
       if (user != null) {
         _isEmailVerified = user.isEmailVerified;
         _status = AuthStatus.authenticated;

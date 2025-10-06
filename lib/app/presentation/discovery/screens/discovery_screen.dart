@@ -16,7 +16,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   @override
   void initState() {
     super.initState();
-    _requestPermissionsAndStartScanning();
+    Future.microtask(() => _requestPermissionsAndStartScanning());
   }
 
   Future<void> _requestPermissionsAndStartScanning() async {
@@ -28,10 +28,37 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       Permission.bluetoothScan,
       Permission.nearbyWifiDevices,
     ].request();
-    
+
     if (mounted) {
-       context.read<DiscoveryViewModel>().startScanning("MyDeviceName");
+      _startScan();
     }
+  }
+
+  String _formatDeviceName(String email) {
+    if (email.isEmpty || !email.contains('@')) {
+      return 'PeerLink User';
+    }
+    final parts = email.split('@').first.split('.');
+    if (parts.length >= 2) {
+      final firstName = parts[0];
+      final regNo = parts[1];
+      final capitalizedFirstName =
+          firstName[0].toUpperCase() + firstName.substring(1);
+      return '$capitalizedFirstName ($regNo)';
+    }
+    return email.split('@').first;
+  }
+
+  void _startScan() {
+    final authViewModel = context.read<AuthViewModel>();
+    final currentUser = authViewModel.currentUser;
+    String deviceName = 'PeerLink User'; // Default name
+
+    if (currentUser != null && currentUser.email.isNotEmpty) {
+      deviceName = _formatDeviceName(currentUser.email);
+    }
+
+    context.read<DiscoveryViewModel>().startScanning(deviceName);
   }
 
   @override
@@ -54,7 +81,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             onPressed: () {
               authViewModel.signOut();
             },
-          )
+          ),
         ],
       ),
       body: discoveryViewModel.isScanning && discoveryViewModel.peers.isEmpty
@@ -72,24 +99,21 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               itemCount: discoveryViewModel.peers.length,
               itemBuilder: (context, index) {
                 final peer = discoveryViewModel.peers[index];
-                // Use our new, beautiful widget!
                 return PeerListItem(
                   peer: peer,
                   onConnect: () {
-                    // We will implement connection logic here in the next step
                     print('Connecting to ${peer.name}...');
                   },
                 );
               },
             ),
-      // Add a FloatingActionButton to start/stop scanning
+      // FloatingActionButton to start/stop scanning
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           if (discoveryViewModel.isScanning) {
             discoveryViewModel.stopScanning();
           } else {
-            // We use the same name for now
-            discoveryViewModel.startScanning("MyDeviceName");
+            _startScan();
           }
         },
         label: Text(discoveryViewModel.isScanning ? 'Stop' : 'Scan'),
