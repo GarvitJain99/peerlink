@@ -12,7 +12,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  // State variable to toggle between Login and Sign Up
   bool _isLoginMode = true;
   bool _isPasswordVisible = false;
 
@@ -28,18 +27,63 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text.trim();
     final authViewModel = context.read<AuthViewModel>();
 
-    // if (email.isEmpty || password.isEmpty) {
-    //     ScaffoldMessenger.of(context).showSnackBar(
-    //         const SnackBar(content: Text('Please fill in both fields.')),
-    //     );
-    //     return;
-    // }
-
     if (_isLoginMode) {
       authViewModel.signIn(email, password);
     } else {
       authViewModel.signUp(email, password);
     }
+  }
+
+  void _showForgotPasswordDialog(BuildContext context) {
+    final emailController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reset Password'),
+          content: TextField(
+            controller: emailController,
+            decoration: const InputDecoration(hintText: 'Enter your email'),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final email = emailController.text.trim();
+                final authViewModel = context.read<AuthViewModel>();
+
+                if (email.isNotEmpty) {
+                  await authViewModel.sendPasswordResetEmail(email);
+
+                  if (!context.mounted) {
+                    return;
+                  }
+
+                  Navigator.of(context).pop();
+
+                  final snackBar = SnackBar(
+                    content: Text(
+                      authViewModel.errorMessage ??
+                          'Password reset link sent to $email.',
+                    ),
+                    backgroundColor: authViewModel.errorMessage != null
+                        ? Colors.red
+                        : Colors.green,
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                }
+              },
+              child: const Text('Send Link'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -48,7 +92,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        // Dynamic title
         title: Text(_isLoginMode ? 'PeerLink Login' : 'Create Account'),
       ),
       body: Padding(
@@ -123,6 +166,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     : 'Already have an account? Login',
               ),
             ),
+
+            if (_isLoginMode)
+              TextButton(
+                onPressed: () => _showForgotPasswordDialog(context),
+                child: const Text('Forgot Password?'),
+              ),
           ],
         ),
       ),

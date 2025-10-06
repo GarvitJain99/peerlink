@@ -21,21 +21,22 @@ class AuthViewModel extends ChangeNotifier {
 
   AuthViewModel() {
     _authService.authStateChanges.listen((user) {
-    if (user != null) {
-      _isEmailVerified = user.isEmailVerified; 
-      _status = AuthStatus.authenticated;
-    } else { 
-      _isEmailVerified = false;
-      _status = AuthStatus.unauthenticated;
-    }
-    notifyListeners();
-  });
+      if (user != null) {
+        _isEmailVerified = user.isEmailVerified;
+        _status = AuthStatus.authenticated;
+      } else {
+        _isEmailVerified = false;
+        _status = AuthStatus.unauthenticated;
+      }
+      notifyListeners();
+    });
   }
 
   Future<void> checkEmailVerification() async {
     await FirebaseAuth.instance.currentUser?.reload();
-    final isVerified = FirebaseAuth.instance.currentUser?.emailVerified ?? false;
-    
+    final isVerified =
+        FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+
     if (isVerified != _isEmailVerified) {
       _isEmailVerified = isVerified;
       notifyListeners();
@@ -51,12 +52,34 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _authService.sendPasswordResetEmail(email);
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = e.message;
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+    }
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
   Future<bool> signIn(String email, String password) async {
+    if (email.isEmpty || password.isEmpty) {
+      _errorMessage = 'Please fill in both fields.';
+      notifyListeners();
+      return false;
+    }
+
     _status = AuthStatus.authenticating;
     _errorMessage = null;
     notifyListeners();
@@ -92,6 +115,12 @@ class AuthViewModel extends ChangeNotifier {
 
   // To handle sign up
   Future<bool> signUp(String email, String password) async {
+    if (email.isEmpty || password.isEmpty) {
+      _errorMessage = 'Please fill in both fields.';
+      notifyListeners();
+      return false;
+    }
+
     _status = AuthStatus.authenticating;
     _errorMessage = null;
     notifyListeners();

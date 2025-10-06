@@ -77,4 +77,14 @@ class AuthService {
   Future<void> signOut() async {
     await _firebaseAuth.signOut();
   }
+
+  Future<void> sendPasswordResetEmail(String email) async {
+    // Note: No email format validation is needed here.
+    // Firebase handles checking if the email exists.
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException {
+      rethrow; // Let the ViewModel handle the error
+    }
+  }
 }
