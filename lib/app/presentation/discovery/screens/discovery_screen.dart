@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:peerlink/app/data/services/p2p_service.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
-import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart';
+import 'package:peerlink/app/presentation/discovery/screens/connected_peers_screen.dart';
+// ** THE TYPO IN THE LINE BELOW IS NOW FIXED **
+import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart'; 
 import 'package:peerlink/app/presentation/discovery/widgets/searching_animation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -118,6 +120,23 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       appBar: AppBar(
         title: const Text('Discover Peers'),
         actions: [
+          if (discoveryViewModel.connectedPeers.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0, right: 8.0),
+              child: Badge(
+                label: Text(discoveryViewModel.connectedPeers.length.toString()),
+                child: IconButton(
+                  icon: const Icon(Icons.group),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ConnectedPeersScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
