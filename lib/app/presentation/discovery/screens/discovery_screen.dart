@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:peerlink/app/data/services/p2p_service.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
-import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart'; // Import new widget
+import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart';
+import 'package:peerlink/app/presentation/discovery/widgets/searching_animation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class DiscoveryScreen extends StatefulWidget {
@@ -13,12 +16,46 @@ class DiscoveryScreen extends StatefulWidget {
 }
 
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
+  StreamSubscription? _connectionRequestSubscription;
   String _ownDeviceName = 'My Device';
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => _requestPermissionsAndStartScanning());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _listenToConnectionRequests();
+      _requestPermissionsAndStartScanning();
+    });
+  }
+
+  void _listenToConnectionRequests() {
+    final viewModel = context.read<DiscoveryViewModel>();
+    _connectionRequestSubscription =
+        viewModel.connectionRequestStream.listen((request) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Connection Request'),
+          content: Text('Do you want to connect with ${request.deviceName}?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                viewModel.rejectConnection(request.deviceId);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Decline'),
+            ),
+            TextButton(
+              onPressed: () {
+                viewModel.acceptConnection(request.deviceId);
+                Navigator.of(context).pop();
+              },
+              child: const Text('Accept'),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Future<void> _requestPermissionsAndStartScanning() async {
@@ -37,9 +74,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   String _formatDeviceName(String email) {
-    if (email.isEmpty || !email.contains('@')) {
-      return 'PeerLink User';
-    }
+    if (email.isEmpty || !email.contains('@')) return 'PeerLink User';
     final parts = email.split('@').first.split('.');
     if (parts.length >= 2) {
       final firstName = parts[0];
@@ -54,7 +89,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   void _startScan() {
     final authViewModel = context.read<AuthViewModel>();
     final currentUser = authViewModel.currentUser;
-    String deviceName = 'PeerLink User'; // Default name
+    String deviceName = 'PeerLink User';
 
     if (currentUser != null && currentUser.email.isNotEmpty) {
       deviceName = _formatDeviceName(currentUser.email);
@@ -69,6 +104,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   @override
   void dispose() {
+    _connectionRequestSubscription?.cancel();
     Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
     super.dispose();
   }
@@ -85,6 +121,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
+              context.read<DiscoveryViewModel>().stopScanning();
               authViewModel.signOut();
             },
           ),
@@ -108,7 +145,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               subtitle: const Text('You'),
             ),
           ),
-
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
@@ -117,21 +153,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             ),
           ),
           const Divider(indent: 16, endIndent: 16),
-
           Expanded(
-            child:
-                discoveryViewModel.isScanning &&
+            child: discoveryViewModel.isScanning &&
                     discoveryViewModel.peers.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Looking for nearby peers...'),
-                      ],
-                    ),
-                  )
+                ? const SearchingAnimation()
                 : ListView.builder(
                     itemCount: discoveryViewModel.peers.length,
                     itemBuilder: (context, index) {
@@ -139,7 +164,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                       return PeerListItem(
                         peer: peer,
                         onConnect: () {
-                          print('Connecting to ${peer.name}...');
+                          final ownUserName = _ownDeviceName;
+                          discoveryViewModel.connectToPeer(peer.id, ownUserName);
                         },
                       );
                     },
@@ -147,7 +173,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           ),
         ],
       ),
-      // FloatingActionButton to start/stop scanning
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           if (discoveryViewModel.isScanning) {
