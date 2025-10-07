@@ -9,7 +9,11 @@ class DiscoveredDevice {
   final String name;
   final DeviceStatus status;
 
-  DiscoveredDevice({required this.id, required this.name, required this.status});
+  DiscoveredDevice({
+    required this.id,
+    required this.name,
+    required this.status,
+  });
 }
 
 // Model to hold info about an incoming connection request
@@ -26,8 +30,7 @@ class ConnectionRequest {
 }
 
 class P2pService {
-  // **OPTIMIZATION: Changed strategy for faster discovery**
-  final Strategy _strategy = Strategy.P2P_POINT_TO_POINT;
+  final Strategy _strategy = Strategy.P2P_STAR;
   final _nearby = Nearby();
 
   final StreamController<DiscoveredDevice> _deviceStreamController =
@@ -82,11 +85,13 @@ class P2pService {
         _strategy,
         onConnectionInitiated: (id, info) {
           print('Connection initiated: $id, ${info.endpointName}');
-          _connectionRequestController.add(ConnectionRequest(
-            deviceId: id,
-            deviceName: info.endpointName,
-            endpointName: info.endpointName,
-          ));
+          _connectionRequestController.add(
+            ConnectionRequest(
+              deviceId: id,
+              deviceName: info.endpointName,
+              endpointName: info.endpointName,
+            ),
+          );
         },
         onConnectionResult: (id, status) {
           print('Connection result: $id, $status');
@@ -114,7 +119,10 @@ class P2pService {
         ownUserName,
         peerId,
         onConnectionInitiated: (id, info) {
-          _nearby.acceptConnection(id, onPayLoadRecieved: (endpointId, payload) {});
+          _nearby.acceptConnection(
+            id,
+            onPayLoadRecieved: (endpointId, payload) {},
+          );
         },
         onConnectionResult: (id, status) {
           _connectionResultController.add({id: status});
@@ -129,10 +137,22 @@ class P2pService {
   }
 
   Future<void> acceptConnection(String peerId) async {
-    await _nearby.acceptConnection(peerId, onPayLoadRecieved: (endpointId, payload) {});
+    await _nearby.acceptConnection(
+      peerId,
+      onPayLoadRecieved: (endpointId, payload) {},
+    );
   }
 
   Future<void> rejectConnection(String peerId) async {
     await _nearby.rejectConnection(peerId);
+  }
+
+  Future<void> disconnectFromPeer(String peerId) async {
+    try {
+      await _nearby.disconnectFromEndpoint(peerId);
+      print('Disconnected from: $peerId');
+    } catch (e) {
+      print('Error disconnecting from peer: $e');
+    }
   }
 }

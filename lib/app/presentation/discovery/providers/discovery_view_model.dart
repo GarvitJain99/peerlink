@@ -8,7 +8,7 @@ class DiscoveryViewModel extends ChangeNotifier {
   final P2pService _p2pService = P2pService();
   StreamSubscription? _deviceSubscription;
   StreamSubscription? _connectionResultSubscription;
-  Timer? _scanTimer;
+  final Map<String, Timer> _lostPeerTimers = {};
 
   Stream<ConnectionRequest> get connectionRequestStream =>
       _p2pService.connectionRequestStream;
@@ -19,6 +19,12 @@ class DiscoveryViewModel extends ChangeNotifier {
   List<PeerDevice> get peers => _peers.values.toList();
   bool get isScanning => _isScanning;
 
+  List<PeerDevice> get connectedPeers {
+    return _peers.values
+        .where((peer) => peer.status == ConnectionStatus.connected)
+        .toList();
+  }
+
   DiscoveryViewModel() {
     _connectionResultSubscription =
         _p2pService.connectionResultStream.listen((result) {
@@ -26,6 +32,9 @@ class DiscoveryViewModel extends ChangeNotifier {
       final status = result.values.first;
 
       if (_peers.containsKey(id)) {
+        _lostPeerTimers[id]?.cancel();
+        _lostPeerTimers.remove(id);
+
         ConnectionStatus newStatus;
         switch (status) {
           case Status.CONNECTED:
@@ -50,7 +59,7 @@ class DiscoveryViewModel extends ChangeNotifier {
   void dispose() {
     _deviceSubscription?.cancel();
     _connectionResultSubscription?.cancel();
-    _scanTimer?.cancel();
+    _lostPeerTimers.forEach((_, timer) => timer.cancel());
     super.dispose();
   }
 
@@ -66,35 +75,36 @@ class DiscoveryViewModel extends ChangeNotifier {
 
     _deviceSubscription = _p2pService.deviceStream.listen((device) {
       if (device.status == DeviceStatus.found) {
+        if (_lostPeerTimers.containsKey(device.id)) {
+          _lostPeerTimers[device.id]?.cancel();
+          _lostPeerTimers.remove(device.id);
+        }
         if (!_peers.containsKey(device.id)) {
           _peers[device.id] = PeerDevice(id: device.id, name: device.name);
         }
       } else if (device.status == DeviceStatus.lost) {
-        _peers.remove(device.id);
+        _lostPeerTimers[device.id] = Timer(const Duration(seconds: 5), () {
+          _peers.remove(device.id);
+          _lostPeerTimers.remove(device.id);
+          notifyListeners();
+        });
       }
       notifyListeners();
-    });
-
-    _scanTimer?.cancel();
-    _scanTimer = Timer(const Duration(seconds: 20), () {
-      if (_isScanning) {
-        print("Scan timed out. Stopping.");
-        stopScanning();
-      }
     });
   }
 
   Future<void> stopScanning() async {
     if (!_isScanning) return;
 
-    _scanTimer?.cancel();
+    _lostPeerTimers.forEach((_, timer) => timer.cancel());
+    _lostPeerTimers.clear();
+
     await _p2pService.stopAdvertising();
     await _p2pService.stopDiscovery();
     _deviceSubscription?.cancel();
     _deviceSubscription = null;
 
     _isScanning = false;
-    _peers.clear();
     notifyListeners();
   }
 
@@ -112,5 +122,13 @@ class DiscoveryViewModel extends ChangeNotifier {
 
   Future<void> rejectConnection(String peerId) async {
     await _p2pService.rejectConnection(peerId);
+  }
+
+  Future<void> disconnectFromPeer(String peerId) async {
+    await _p2pService.disconnectFromPeer(peerId);
+    if (_peers.containsKey(peerId)) {
+      _peers.remove(peerId);
+      notifyListeners();
+    }
   }
 }
