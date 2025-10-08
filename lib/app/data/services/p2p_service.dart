@@ -33,20 +33,28 @@ class P2pService {
   final Strategy _strategy = Strategy.P2P_STAR;
   final _nearby = Nearby();
 
-  final StreamController<DiscoveredDevice> _deviceStreamController =
-      StreamController<DiscoveredDevice>.broadcast();
+  // Stream for broadcasting found devices
+  final StreamController<Map<String, String>> _deviceStreamController =
+      StreamController<Map<String, String>>.broadcast();
+  Stream<Map<String, String>> get deviceStream =>
+      _deviceStreamController.stream;
 
-  final StreamController<ConnectionRequest> _connectionRequestController =
-      StreamController<ConnectionRequest>.broadcast();
+  // Stream for broadcasting when a device is no longer visible
+  final StreamController<String> _endpointLostController =
+      StreamController<String>.broadcast();
+  Stream<String> get endpointLostStream => _endpointLostController.stream;
 
-  final StreamController<Map<String, Status>> _connectionResultController =
-      StreamController<Map<String, Status>>.broadcast();
-
-  Stream<DiscoveredDevice> get deviceStream => _deviceStreamController.stream;
-  Stream<ConnectionRequest> get connectionRequestStream =>
+  // Stream for broadcasting incoming connection requests
+  final StreamController<Map<String, dynamic>> _connectionRequestController =
+      StreamController.broadcast();
+  Stream<Map<String, dynamic>> get connectionRequestStream =>
       _connectionRequestController.stream;
-  Stream<Map<String, Status>> get connectionResultStream =>
-      _connectionResultController.stream;
+
+  // Stream for broadcasting connection status updates (connected, failed, etc.)
+  final StreamController<Map<String, String>> _connectionStatusController =
+      StreamController.broadcast();
+  Stream<Map<String, String>> get connectionStatusStream =>
+      _connectionStatusController.stream;
 
   Future<void> startDiscovery(String ownUserName) async {
     try {
@@ -60,10 +68,7 @@ class P2pService {
         },
         onEndpointLost: (id) {
           if (id != null) {
-            print('Endpoint lost: $id');
-            _deviceStreamController.add(
-              DiscoveredDevice(id: id, name: '', status: DeviceStatus.lost),
-            );
+            _endpointLostController.add(id);
           }
         },
       );
@@ -84,22 +89,16 @@ class P2pService {
         ownUserName,
         _strategy,
         onConnectionInitiated: (id, info) {
-          print('Connection initiated: $id, ${info.endpointName}');
-          _connectionRequestController.add(
-            ConnectionRequest(
-              deviceId: id,
-              deviceName: info.endpointName,
-              endpointName: info.endpointName,
-            ),
-          );
+          _connectionRequestController.add({'id': id, 'info': info});
         },
         onConnectionResult: (id, status) {
-          print('Connection result: $id, $status');
-          _connectionResultController.add({id: status});
+          _connectionStatusController.add({
+            'id': id,
+            'status': status.toString(),
+          });
         },
         onDisconnected: (id) {
-          print('Disconnected: $id');
-          _connectionResultController.add({id: Status.ERROR});
+          _connectionStatusController.add({'id': id, 'status': 'disconnected'});
         },
       );
       print('Advertising started');
@@ -113,46 +112,44 @@ class P2pService {
     print('Advertising stopped');
   }
 
-  Future<void> requestConnection(String peerId, String ownUserName) async {
+  Future<void> requestConnection(String endpointId, String ownName) async {
     try {
       await _nearby.requestConnection(
-        ownUserName,
-        peerId,
+        ownName,
+        endpointId,
         onConnectionInitiated: (id, info) {
-          _nearby.acceptConnection(
-            id,
-            onPayLoadRecieved: (endpointId, payload) {},
-          );
+          _connectionRequestController.add({'id': id, 'info': info});
         },
         onConnectionResult: (id, status) {
-          _connectionResultController.add({id: status});
+          _connectionStatusController.add({
+            'id': id,
+            'status': status.toString(),
+          });
         },
         onDisconnected: (id) {
-          _connectionResultController.add({id: Status.ERROR});
+          _connectionStatusController.add({'id': id, 'status': 'disconnected'});
         },
       );
     } catch (e) {
-      print('Error requesting connection: $e');
+      print("requestConnection error: $e");
+      rethrow;
     }
   }
 
-  Future<void> acceptConnection(String peerId) async {
-    await _nearby.acceptConnection(
-      peerId,
-      onPayLoadRecieved: (endpointId, payload) {},
-    );
-  }
-
-  Future<void> rejectConnection(String peerId) async {
-    await _nearby.rejectConnection(peerId);
-  }
-
-  Future<void> disconnectFromPeer(String peerId) async {
-    try {
-      await _nearby.disconnectFromEndpoint(peerId);
-      print('Disconnected from: $peerId');
-    } catch (e) {
-      print('Error disconnecting from peer: $e');
+  Future<void> handleConnectionRequest(String endpointId, bool accept) async {
+    if (accept) {
+      await _nearby.acceptConnection(
+        endpointId,
+        onPayLoadRecieved: (endpointId, payload) {
+          // Where file handling logic will be put
+        },
+      );
+    } else {
+      await _nearby.rejectConnection(endpointId);
     }
+  }
+
+  Future<void> disconnectFrom(String endpointId) async {
+    await _nearby.disconnectFromEndpoint(endpointId);
   }
 }

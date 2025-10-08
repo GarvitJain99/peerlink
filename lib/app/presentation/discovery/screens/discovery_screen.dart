@@ -4,10 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:peerlink/app/data/services/p2p_service.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
-import 'package:peerlink/app/presentation/discovery/screens/connected_peers_screen.dart';
-// ** THE TYPO IN THE LINE BELOW IS NOW FIXED **
-import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart'; 
-import 'package:peerlink/app/presentation/discovery/widgets/searching_animation.dart';
+import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class DiscoveryScreen extends StatefulWidget {
@@ -20,59 +17,74 @@ class DiscoveryScreen extends StatefulWidget {
 class _DiscoveryScreenState extends State<DiscoveryScreen> {
   StreamSubscription? _connectionRequestSubscription;
   String _ownDeviceName = 'My Device';
+  bool _isDialogShowing = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _listenToConnectionRequests();
+    Future.microtask(() {
+      final discoveryViewModel = context.read<DiscoveryViewModel>();
+      // Feature: Listen for connection requests to show the dialog
+      _connectionRequestSubscription = discoveryViewModel
+          .uiConnectionRequestStream
+          .listen((event) {
+            _showConnectionRequestDialog(
+              context,
+              event['id'],
+              event['info'].endpointName,
+            );
+          });
       _requestPermissionsAndStartScanning();
     });
   }
 
-  void _listenToConnectionRequests() {
-    final viewModel = context.read<DiscoveryViewModel>();
-    _connectionRequestSubscription =
-        viewModel.connectionRequestStream.listen((request) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Connection Request'),
-          content: Text('Do you want to connect with ${request.deviceName}?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                viewModel.rejectConnection(request.deviceId);
-                Navigator.of(context).pop();
-              },
-              child: const Text('Decline'),
-            ),
-            TextButton(
-              onPressed: () {
-                viewModel.acceptConnection(request.deviceId);
-                Navigator.of(context).pop();
-              },
-              child: const Text('Accept'),
-            ),
-          ],
-        ),
-      );
-    });
+  @override
+  void dispose() {
+    _connectionRequestSubscription?.cancel();
+    Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
+    super.dispose();
   }
 
-  Future<void> _requestPermissionsAndStartScanning() async {
-    await [
-      Permission.location,
-      Permission.bluetooth,
-      Permission.bluetoothAdvertise,
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.nearbyWifiDevices,
-    ].request();
+  void _showConnectionRequestDialog(
+    BuildContext context,
+    String id,
+    String name,
+  ) {
+    if (_isDialogShowing) return;
 
-    if (mounted) {
-      _startScan();
-    }
+    setState(() {
+      _isDialogShowing = true;
+    });
+
+    final discoveryViewModel = context.read<DiscoveryViewModel>();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Connection Request'),
+        content: Text('Do you want to connect with $name?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              discoveryViewModel.acceptConnection(id, false);
+              Navigator.of(context).pop();
+            },
+            child: const Text('REJECT'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              discoveryViewModel.acceptConnection(id, true);
+              Navigator.of(context).pop();
+            },
+            child: const Text('ACCEPT'),
+          ),
+        ],
+      ),
+    ).then((_) {
+      setState(() {
+        _isDialogShowing = false;
+      });
+    });
   }
 
   String _formatDeviceName(String email) {
@@ -104,11 +116,19 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     context.read<DiscoveryViewModel>().startScanning(deviceName);
   }
 
-  @override
-  void dispose() {
-    _connectionRequestSubscription?.cancel();
-    Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
-    super.dispose();
+  Future<void> _requestPermissionsAndStartScanning() async {
+    await [
+      Permission.location,
+      Permission.bluetooth,
+      Permission.bluetoothAdvertise,
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan,
+      Permission.nearbyWifiDevices,
+    ].request();
+
+    if (mounted) {
+      _startScan();
+    }
   }
 
   @override
@@ -183,8 +203,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                       return PeerListItem(
                         peer: peer,
                         onConnect: () {
-                          final ownUserName = _ownDeviceName;
-                          discoveryViewModel.connectToPeer(peer.id, ownUserName);
+                          discoveryViewModel.connectToPeer(
+                            peer,
+                            _ownDeviceName,
+                          );
+                        },
+                        onDisconnect: () {
+                          discoveryViewModel.disconnectFromPeer(peer.id);
                         },
                       );
                     },
