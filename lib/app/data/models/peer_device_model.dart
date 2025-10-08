@@ -1,10 +1,4 @@
-enum ConnectionStatus {
-  found,
-  connecting,
-  connected,
-  failed,
-  disconnected,
-}
+enum ConnectionStatus { found, connecting, connected, failed, disconnected }
 
 class PeerDevice {
   final String id;
@@ -19,10 +13,6 @@ class PeerDevice {
 
   // Helper method to create a copy with a new status
   PeerDevice copyWith({ConnectionStatus? status}) {
-    return PeerDevice(
-      id: id,
-      name: name,
-      status: status ?? this.status,
-    );
+    return PeerDevice(id: id, name: name, status: status ?? this.status);
   }
 }
