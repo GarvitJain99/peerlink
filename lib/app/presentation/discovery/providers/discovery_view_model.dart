@@ -90,6 +90,7 @@ class DiscoveryViewModel extends ChangeNotifier {
     _peers.clear();
     notifyListeners();
 
+    // Start advertising and discovering simultaneously
     await _p2pService.startAdvertising(ownUserName);
     await _p2pService.startDiscovery(ownUserName);
     _deviceSubscription = _p2pService.deviceStream.listen((deviceMap) {
@@ -100,21 +101,18 @@ class DiscoveryViewModel extends ChangeNotifier {
         _peers[id] = PeerDevice(id: id, name: name);
         notifyListeners();
       }
-      notifyListeners();
     });
   }
 
   Future<void> stopScanning() async {
     if (!_isScanning) return;
 
-    _lostPeerTimers.forEach((_, timer) => timer.cancel());
-    _lostPeerTimers.clear();
-
     await _p2pService.stopAdvertising();
     await _p2pService.stopDiscovery();
     _deviceSubscription?.cancel();
 
     _isScanning = false;
+    _peers.clear();
     notifyListeners();
   }
 

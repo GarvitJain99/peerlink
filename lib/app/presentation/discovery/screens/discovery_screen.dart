@@ -1,7 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:peerlink/app/data/services/p2p_service.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart';
@@ -88,7 +88,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   String _formatDeviceName(String email) {
-    if (email.isEmpty || !email.contains('@')) return 'PeerLink User';
+    if (email.isEmpty || !email.contains('@')) {
+      return 'PeerLink User';
+    }
     final parts = email.split('@').first.split('.');
     if (parts.length >= 2) {
       final firstName = parts[0];
@@ -103,7 +105,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   void _startScan() {
     final authViewModel = context.read<AuthViewModel>();
     final currentUser = authViewModel.currentUser;
-    String deviceName = 'PeerLink User';
+    String deviceName = 'PeerLink User'; // Default name
 
     if (currentUser != null && currentUser.email.isNotEmpty) {
       deviceName = _formatDeviceName(currentUser.email);
@@ -140,27 +142,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       appBar: AppBar(
         title: const Text('Discover Peers'),
         actions: [
-          if (discoveryViewModel.connectedPeers.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4.0, right: 8.0),
-              child: Badge(
-                label: Text(discoveryViewModel.connectedPeers.length.toString()),
-                child: IconButton(
-                  icon: const Icon(Icons.group),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const ConnectedPeersScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
-              context.read<DiscoveryViewModel>().stopScanning();
               authViewModel.signOut();
             },
           ),
@@ -184,6 +168,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               subtitle: const Text('You'),
             ),
           ),
+
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
@@ -192,10 +177,21 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             ),
           ),
           const Divider(indent: 16, endIndent: 16),
+
           Expanded(
-            child: discoveryViewModel.isScanning &&
+            child:
+                discoveryViewModel.isScanning &&
                     discoveryViewModel.peers.isEmpty
-                ? const SearchingAnimation()
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Looking for nearby peers...'),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: discoveryViewModel.peers.length,
                     itemBuilder: (context, index) {
@@ -217,6 +213,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           ),
         ],
       ),
+      // FloatingActionButton to start/stop scanning
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           if (discoveryViewModel.isScanning) {

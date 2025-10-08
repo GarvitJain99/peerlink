@@ -1,34 +1,6 @@
 import 'dart:async';
 import 'package:nearby_connections/nearby_connections.dart';
 
-// Helper class to make stream data clearer
-enum DeviceStatus { found, lost }
-
-class DiscoveredDevice {
-  final String id;
-  final String name;
-  final DeviceStatus status;
-
-  DiscoveredDevice({
-    required this.id,
-    required this.name,
-    required this.status,
-  });
-}
-
-// Model to hold info about an incoming connection request
-class ConnectionRequest {
-  final String deviceId;
-  final String deviceName;
-  final String endpointName;
-
-  ConnectionRequest({
-    required this.deviceId,
-    required this.deviceName,
-    required this.endpointName,
-  });
-}
-
 class P2pService {
   final Strategy _strategy = Strategy.P2P_STAR;
   final _nearby = Nearby();
@@ -62,9 +34,8 @@ class P2pService {
         ownUserName,
         _strategy,
         onEndpointFound: (id, name, serviceId) {
-          _deviceStreamController.add(
-            DiscoveredDevice(id: id, name: name, status: DeviceStatus.found),
-          );
+          // Add the found device to our stream
+          _deviceStreamController.add({id: name});
         },
         onEndpointLost: (id) {
           if (id != null) {
