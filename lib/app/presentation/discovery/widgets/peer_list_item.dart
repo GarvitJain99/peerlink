@@ -10,7 +10,7 @@ class PeerListItem extends StatelessWidget {
     super.key,
     required this.peer,
     required this.onConnect,
-    required this.onDisconnect, 
+    required this.onDisconnect,
   });
 
   @override
@@ -22,7 +22,8 @@ class PeerListItem extends StatelessWidget {
           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
           child: const Icon(Icons.phone_android_sharp),
         ),
-        title: Text(peer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(peer.name,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Row(
           children: [
             Icon(_getStatusIcon(), color: _getStatusColor(), size: 16),
@@ -43,6 +44,8 @@ class PeerListItem extends StatelessWidget {
         return Colors.orange;
       case ConnectionStatus.failed:
         return Colors.red;
+      case ConnectionStatus.busy:
+        return Colors.grey;
       default: // found or disconnected
         return Colors.blue;
     }
@@ -56,6 +59,8 @@ class PeerListItem extends StatelessWidget {
         return Icons.sync;
       case ConnectionStatus.failed:
         return Icons.error;
+      case ConnectionStatus.busy:
+        return Icons.do_not_disturb_on;
       default:
         return Icons.tap_and_play;
     }
@@ -76,21 +81,16 @@ class PeerListItem extends StatelessWidget {
           height: 24,
           child: CircularProgressIndicator(strokeWidth: 3),
         );
+      case ConnectionStatus.busy:
+        return const Chip(label: Text('Busy'), backgroundColor: Colors.grey);
       case ConnectionStatus.connected:
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.share),
-              tooltip: 'Share File',
-              onPressed: () {
-                // File Sharing here
-              },
-            ),
-            IconButton(
               icon: const Icon(Icons.close, color: Colors.red),
               tooltip: 'Disconnect',
-              onPressed: onDisconnect, 
+              onPressed: onDisconnect,
             ),
           ],
         );
