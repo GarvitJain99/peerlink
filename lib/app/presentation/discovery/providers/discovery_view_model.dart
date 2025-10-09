@@ -23,7 +23,6 @@ class DiscoveryViewModel extends ChangeNotifier {
   bool get isScanning => _isScanning;
 
   DiscoveryViewModel() {
-    // Listen for new devices and add them to the list
     _deviceSubscription = _p2pService.deviceStream.listen((deviceMap) {
       final id = deviceMap.keys.first;
       final name = deviceMap.values.first;
@@ -33,44 +32,38 @@ class DiscoveryViewModel extends ChangeNotifier {
       }
     });
 
-    // Listen for lost devices and remove them from the list
-    _endpointLostSubscription = _p2pService.endpointLostStream.listen((
-      endpointId,
-    ) {
-      if (_peers.containsKey(endpointId)) {
-        _peers.remove(endpointId);
-        notifyListeners();
-      }
-    });
-
-    // Listen for connection requests and pass them to the UI
-    _connectionRequestSubscription = _p2pService.connectionRequestStream.listen(
-      (event) {
-        final id = event['id'] as String;
-
-        if (_peers.containsKey(id) &&
-            _peers[id]!.status == ConnectionStatus.connecting) {
-          acceptConnection(id, true);
-        } else {
-          _uiConnectionRequestController.add(event);
+    _endpointLostSubscription = _p2pService.endpointLostStream.listen(
+      (endpointId) {
+        if (_peers.containsKey(endpointId)) {
+          _peers.remove(endpointId);
+          notifyListeners();
         }
       },
     );
 
-    // Listen for status updates and update the peer's state
-    _connectionStatusSubscription = _p2pService.connectionStatusStream.listen((
-      event,
-    ) {
-      final id = event['id']!;
-      final status = event['status']!;
+    _connectionRequestSubscription = _p2pService.connectionRequestStream.listen(
+      (event) {
+        _uiConnectionRequestController.add(event);
+      },
+    );
 
-      if (status == 'Status.CONNECTED') {
-        _peers[id] = _peers[id]!.copyWith(status: ConnectionStatus.connected);
-      } else {
-        _peers[id] = _peers[id]!.copyWith(status: ConnectionStatus.found);
-      }
-      notifyListeners();
-    });
+    _connectionStatusSubscription = _p2pService.connectionStatusStream.listen(
+      (event) {
+        final id = event['id']!;
+        final status = event['status']!;
+
+        if (_peers.containsKey(id)) {
+          if (status == 'Status.CONNECTED') {
+            _peers[id] = _peers[id]!.copyWith(status: ConnectionStatus.connected);
+          } else if (status == 'Status.REJECTED') {
+            _peers[id] = _peers[id]!.copyWith(status: ConnectionStatus.found);
+          } else { // Handles 'disconnected' and 'Status.ERROR'
+            _peers[id] = _peers[id]!.copyWith(status: ConnectionStatus.found);
+          }
+          notifyListeners();
+        }
+      },
+    );
   }
 
   @override
@@ -85,48 +78,45 @@ class DiscoveryViewModel extends ChangeNotifier {
 
   Future<void> startScanning(String ownUserName) async {
     if (_isScanning) return;
-
     _isScanning = true;
     _peers.clear();
     notifyListeners();
-
-    // Start advertising and discovering simultaneously
     await _p2pService.startAdvertising(ownUserName);
     await _p2pService.startDiscovery(ownUserName);
-    _deviceSubscription = _p2pService.deviceStream.listen((deviceMap) {
-      final id = deviceMap.keys.first;
-      final name = deviceMap.values.first;
-
-      if (!_peers.containsKey(id)) {
-        _peers[id] = PeerDevice(id: id, name: name);
-        notifyListeners();
-      }
-    });
   }
 
+  // **MODIFIED: This now disconnects everyone and clears the UI**
   Future<void> stopScanning() async {
     if (!_isScanning) return;
-
+    await _disconnectFromAllPeers();
     await _p2pService.stopAdvertising();
     await _p2pService.stopDiscovery();
-    _deviceSubscription?.cancel();
-
     _isScanning = false;
     _peers.clear();
     notifyListeners();
+  }
+
+  // Helper method for stopScanning
+  Future<void> _disconnectFromAllPeers() async {
+    final connectedPeers =
+        _peers.values.where((p) => p.status == ConnectionStatus.connected).toList();
+    for (final peer in connectedPeers) {
+      await _p2pService.disconnectFrom(peer.id);
+    }
   }
 
   Future<void> connectToPeer(PeerDevice peer, String ownName) async {
     if (peer.status == ConnectionStatus.found) {
       _peers[peer.id] = peer.copyWith(status: ConnectionStatus.connecting);
       notifyListeners();
-      await Future.delayed(Duration.zero); 
       try {
         await _p2pService.requestConnection(peer.id, ownName);
       } on PlatformException catch (e) {
-        if (e.code == '8003') {
-          // STATUS_ALREADY_CONNECTED_TO_ENDPOINT
+        if (e.code == '8003') { // STATUS_ALREADY_CONNECTED_TO_ENDPOINT
           _peers[peer.id] = peer.copyWith(status: ConnectionStatus.connected);
+          notifyListeners();
+        } else {
+          _peers[peer.id] = peer.copyWith(status: ConnectionStatus.failed);
           notifyListeners();
         }
       }
@@ -137,13 +127,13 @@ class DiscoveryViewModel extends ChangeNotifier {
     await _p2pService.handleConnectionRequest(endpointId, accept);
   }
 
+  // **MODIFIED: This now ONLY changes the status, it does not remove the peer**
   Future<void> disconnectFromPeer(String endpointId) async {
+    await _p2pService.disconnectFrom(endpointId);
     if (_peers.containsKey(endpointId)) {
-      _peers[endpointId] = _peers[endpointId]!.copyWith(
-        status: ConnectionStatus.found,
-      );
+      _peers[endpointId] =
+          _peers[endpointId]!.copyWith(status: ConnectionStatus.found);
       notifyListeners();
     }
-    await _p2pService.disconnectFrom(endpointId);
   }
 }
