@@ -5,6 +5,7 @@ import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:peerlink/app/presentation/chat/screens/chat_screen.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
@@ -16,6 +17,8 @@ class DiscoveryScreen extends StatefulWidget {
 class _DiscoveryScreenState extends State<DiscoveryScreen>
     with WidgetsBindingObserver {
   StreamSubscription? _connectionRequestSubscription;
+  StreamSubscription? _navigateToChatSubscription;
+  StreamSubscription? _closeChatSubscription; // NEW
   String _ownDeviceName = 'My Device';
   bool _isDialogShowing = false;
 
@@ -25,6 +28,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     WidgetsBinding.instance.addObserver(this);
     Future.microtask(() {
       final discoveryViewModel = context.read<DiscoveryViewModel>();
+      
       _connectionRequestSubscription =
           discoveryViewModel.uiConnectionRequestStream.listen((event) {
         _showConnectionRequestDialog(
@@ -33,6 +37,23 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           event['info'].endpointName,
         );
       });
+
+      _navigateToChatSubscription =
+          discoveryViewModel.navigateToChatStream.listen((peer) {
+        if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => ChatScreen(peer: peer),
+          ));
+        }
+      });
+      
+      // NEW: Listen for events that should close the chat screen
+      _closeChatSubscription = discoveryViewModel.closeChatStream.listen((_) {
+        if (mounted && !(ModalRoute.of(context)?.isCurrent ?? true)) {
+          Navigator.of(context).pop();
+        }
+      });
+      
       _requestPermissionsAndStartScanning();
     });
   }
@@ -40,7 +61,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // When the app is fully closed, stop all P2P activity.
     if (state == AppLifecycleState.detached) {
       Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
     }
@@ -50,7 +70,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectionRequestSubscription?.cancel();
-    // Also call stopScanning on dispose as a final cleanup
+    _navigateToChatSubscription?.cancel();
+    _closeChatSubscription?.cancel(); // NEW
     Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
     super.dispose();
   }

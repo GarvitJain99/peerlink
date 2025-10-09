@@ -1,4 +1,5 @@
-enum ConnectionStatus { found, connecting, connected, failed, disconnected }
+// MODIFIED: Added 'busy' to the enum
+enum ConnectionStatus { found, connecting, connected, failed, disconnected, busy }
 
 class PeerDevice {
   final String id;

@@ -2,9 +2,12 @@ import 'dart:async';
 import 'package:nearby_connections/nearby_connections.dart';
 
 class P2pService {
-  final Strategy _strategy = Strategy.P2P_STAR;
+  // MODIFIED: Changed from P2P_STAR to P2P_POINT_TO_POINT
+  final Strategy _strategy = Strategy.P2P_POINT_TO_POINT;
   final _nearby = Nearby();
 
+  // ... rest of the file is exactly the same
+  
   // Stream for broadcasting found devices
   final StreamController<Map<String, String>> _deviceStreamController =
       StreamController<Map<String, String>>.broadcast();
