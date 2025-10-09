@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
@@ -14,7 +13,8 @@ class DiscoveryScreen extends StatefulWidget {
   State<DiscoveryScreen> createState() => _DiscoveryScreenState();
 }
 
-class _DiscoveryScreenState extends State<DiscoveryScreen> {
+class _DiscoveryScreenState extends State<DiscoveryScreen>
+    with WidgetsBindingObserver {
   StreamSubscription? _connectionRequestSubscription;
   String _ownDeviceName = 'My Device';
   bool _isDialogShowing = false;
@@ -22,25 +22,35 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     Future.microtask(() {
       final discoveryViewModel = context.read<DiscoveryViewModel>();
-      // Feature: Listen for connection requests to show the dialog
-      _connectionRequestSubscription = discoveryViewModel
-          .uiConnectionRequestStream
-          .listen((event) {
-            _showConnectionRequestDialog(
-              context,
-              event['id'],
-              event['info'].endpointName,
-            );
-          });
+      _connectionRequestSubscription =
+          discoveryViewModel.uiConnectionRequestStream.listen((event) {
+        _showConnectionRequestDialog(
+          context,
+          event['id'],
+          event['info'].endpointName,
+        );
+      });
       _requestPermissionsAndStartScanning();
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // When the app is fully closed, stop all P2P activity.
+    if (state == AppLifecycleState.detached) {
+      Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _connectionRequestSubscription?.cancel();
+    // Also call stopScanning on dispose as a final cleanup
     Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
     super.dispose();
   }
@@ -51,10 +61,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     String name,
   ) {
     if (_isDialogShowing) return;
-
-    setState(() {
-      _isDialogShowing = true;
-    });
+    setState(() => _isDialogShowing = true);
 
     final discoveryViewModel = context.read<DiscoveryViewModel>();
     showDialog(
@@ -80,17 +87,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           ),
         ],
       ),
-    ).then((_) {
-      setState(() {
-        _isDialogShowing = false;
-      });
-    });
+    ).then((_) => setState(() => _isDialogShowing = false));
   }
 
   String _formatDeviceName(String email) {
-    if (email.isEmpty || !email.contains('@')) {
-      return 'PeerLink User';
-    }
+    if (email.isEmpty || !email.contains('@')) return 'PeerLink User';
     final parts = email.split('@').first.split('.');
     if (parts.length >= 2) {
       final firstName = parts[0];
@@ -105,16 +106,12 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   void _startScan() {
     final authViewModel = context.read<AuthViewModel>();
     final currentUser = authViewModel.currentUser;
-    String deviceName = 'PeerLink User'; // Default name
+    String deviceName = 'PeerLink User';
 
     if (currentUser != null && currentUser.email.isNotEmpty) {
       deviceName = _formatDeviceName(currentUser.email);
     }
-
-    setState(() {
-      _ownDeviceName = deviceName;
-    });
-
+    setState(() => _ownDeviceName = deviceName);
     context.read<DiscoveryViewModel>().startScanning(deviceName);
   }
 
@@ -145,6 +142,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
+              discoveryViewModel.stopScanning();
               authViewModel.signOut();
             },
           ),
@@ -168,7 +166,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
               subtitle: const Text('You'),
             ),
           ),
-
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
@@ -177,10 +174,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             ),
           ),
           const Divider(indent: 16, endIndent: 16),
-
           Expanded(
-            child:
-                discoveryViewModel.isScanning &&
+            child: discoveryViewModel.isScanning &&
                     discoveryViewModel.peers.isEmpty
                 ? Center(
                     child: Column(
@@ -213,7 +208,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
           ),
         ],
       ),
-      // FloatingActionButton to start/stop scanning
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           if (discoveryViewModel.isScanning) {
