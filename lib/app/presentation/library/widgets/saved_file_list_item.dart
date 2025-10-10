@@ -25,6 +25,8 @@ class SavedFileListItem extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: ListTile(
+        // ADD THIS: Make the entire tile tappable to open the file
+        onTap: () => OpenFile.open(file.filePath),
         leading: const Icon(Icons.insert_drive_file, size: 40),
         title: Text(file.fileName, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
@@ -37,9 +39,6 @@ class SavedFileListItem extends StatelessWidget {
               case 'details':
                 _showDetailsDialog(context);
                 break;
-              case 'open':
-                OpenFile.open(file.filePath);
-                break;
               case 'rename':
                 _showRenameDialog(context, viewModel);
                 break;
@@ -50,7 +49,7 @@ class SavedFileListItem extends StatelessWidget {
           },
           itemBuilder: (context) => [
             const PopupMenuItem(value: 'details', child: Text('Details')),
-            const PopupMenuItem(value: 'open', child: Text('Open')),
+            // REMOVED: The 'Open' option is no longer needed here
             const PopupMenuItem(value: 'rename', child: Text('Rename')),
             const PopupMenuItem(value: 'delete', child: Text('Delete')),
           ],

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:peerlink/app/presentation/library/providers/library_view_model.dart';
 import 'package:peerlink/app/presentation/transfer/screens/transfer_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
@@ -243,12 +244,19 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
             FloatingActionButton(
               heroTag: 'library_button',
               onPressed: () {
+                // First, stop scanning to prevent issues
+                final discoveryViewModel = context.read<DiscoveryViewModel>();
                 discoveryViewModel.stopScanning();
+                 context.read<LibraryViewModel>().loadFiles();
+
+                
+                // Navigate to the LibraryScreen and *wait for it to close*.
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const LibraryScreen(),
                   ),
                 );
+                // After the LibraryScreen is closed, tell the LibraryViewModel to reload its files.
               },
               tooltip: 'My Library',
               child: const Icon(Icons.folder_copy_outlined),
