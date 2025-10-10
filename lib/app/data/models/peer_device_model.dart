@@ -1,4 +1,3 @@
-// MODIFIED: Added 'busy' to the enum
 enum ConnectionStatus { found, connecting, connected, failed, disconnected, busy }
 
 class PeerDevice {

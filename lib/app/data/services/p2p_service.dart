@@ -1,13 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:nearby_connections/nearby_connections.dart';
 
 class P2pService {
-  // MODIFIED: Changed from P2P_STAR to P2P_POINT_TO_POINT
+  // Changed from P2P_STAR to P2P_POINT_TO_POINT
   final Strategy _strategy = Strategy.P2P_POINT_TO_POINT;
   final _nearby = Nearby();
 
-  // ... rest of the file is exactly the same
-  
   // Stream for broadcasting found devices
   final StreamController<Map<String, String>> _deviceStreamController =
       StreamController<Map<String, String>>.broadcast();
@@ -30,6 +30,15 @@ class P2pService {
       StreamController.broadcast();
   Stream<Map<String, String>> get connectionStatusStream =>
       _connectionStatusController.stream;
+
+  final StreamController<Map<String, dynamic>> _payloadController =
+      StreamController.broadcast();
+  Stream<Map<String, dynamic>> get payloadStream => _payloadController.stream;
+
+  final StreamController<Map<String, dynamic>> _payloadTransferController =
+      StreamController.broadcast();
+  Stream<Map<String, dynamic>> get payloadTransferStream =>
+      _payloadTransferController.stream;
 
   Future<void> startDiscovery(String ownUserName) async {
     try {
@@ -115,7 +124,13 @@ class P2pService {
       await _nearby.acceptConnection(
         endpointId,
         onPayLoadRecieved: (endpointId, payload) {
-          // Where file handling logic will be put
+          _payloadController.add({'id': endpointId, 'payload': payload});
+        },
+        onPayloadTransferUpdate: (endpointId, payloadTransferUpdate) {
+          _payloadTransferController.add({
+            'id': endpointId,
+            'update': payloadTransferUpdate,
+          });
         },
       );
     } else {
@@ -125,5 +140,18 @@ class P2pService {
 
   Future<void> disconnectFrom(String endpointId) async {
     await _nearby.disconnectFromEndpoint(endpointId);
+  }
+
+  Future<int> sendFile(String endpointId, String filePath) async {
+    return await _nearby.sendFilePayload(endpointId, filePath);
+  }
+
+  Future<void> sendBytes(String endpointId, Map<String, dynamic> data) async {
+    final byteData = Uint8List.fromList(jsonEncode(data).codeUnits);
+    await _nearby.sendBytesPayload(endpointId, byteData);
+  }
+
+  Future<void> cancelTransfer(int payloadId) async {
+    await _nearby.cancelPayload(payloadId);
   }
 }

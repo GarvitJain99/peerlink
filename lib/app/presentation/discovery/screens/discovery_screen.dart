@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:peerlink/app/presentation/transfer/screens/transfer_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:peerlink/app/presentation/chat/screens/chat_screen.dart';
+
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
@@ -18,7 +19,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     with WidgetsBindingObserver {
   StreamSubscription? _connectionRequestSubscription;
   StreamSubscription? _navigateToChatSubscription;
-  StreamSubscription? _closeChatSubscription; // NEW
+  StreamSubscription? _closeChatSubscription; 
   String _ownDeviceName = 'My Device';
   bool _isDialogShowing = false;
 
@@ -42,7 +43,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           discoveryViewModel.navigateToChatStream.listen((peer) {
         if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
           Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => ChatScreen(peer: peer),
+            builder: (context) => TransferScreen(peer: peer),
           ));
         }
       });
@@ -71,7 +72,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     WidgetsBinding.instance.removeObserver(this);
     _connectionRequestSubscription?.cancel();
     _navigateToChatSubscription?.cancel();
-    _closeChatSubscription?.cancel(); // NEW
+    _closeChatSubscription?.cancel(); 
     Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
     super.dispose();
   }

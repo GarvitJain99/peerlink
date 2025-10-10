@@ -5,7 +5,7 @@ import 'package:peerlink/app/data/models/peer_device_model.dart';
 import 'package:peerlink/app/data/services/p2p_service.dart';
 
 class DiscoveryViewModel extends ChangeNotifier {
-  final P2pService _p2pService = P2pService();
+  final P2pService _p2pService;
   StreamSubscription? _deviceSubscription;
   StreamSubscription? _endpointLostSubscription;
   StreamSubscription? _connectionRequestSubscription;
@@ -33,7 +33,7 @@ class DiscoveryViewModel extends ChangeNotifier {
   bool get isConnected =>
       _peers.values.any((p) => p.status == ConnectionStatus.connected);
 
-  DiscoveryViewModel() {
+  DiscoveryViewModel(this._p2pService) {
     _deviceSubscription = _p2pService.deviceStream.listen((deviceMap) {
       final id = deviceMap.keys.first;
       final name = deviceMap.values.first;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:peerlink/app/data/services/p2p_service.dart';
 import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/auth/screens/login_screen.dart';
 import 'package:peerlink/app/presentation/auth/screens/verify_email_screen.dart';
@@ -14,8 +15,13 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthViewModel()),
-        ChangeNotifierProvider(create: (_) => DiscoveryViewModel()),
+        Provider<P2pService>(create: (_) => P2pService()),
+        ChangeNotifierProvider(create: (context) => AuthViewModel()),
+        ChangeNotifierProxyProvider<P2pService, DiscoveryViewModel>(
+          create: (context) => DiscoveryViewModel(context.read<P2pService>()),
+          update: (context, p2pService, previousViewModel) =>
+              DiscoveryViewModel(p2pService),
+        ),
       ],
       child: const MyApp(),
     ),
