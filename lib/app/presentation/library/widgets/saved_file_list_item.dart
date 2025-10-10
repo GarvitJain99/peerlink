@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:peerlink/app/data/models/saved_file_model.dart';
 import 'package:peerlink/app/presentation/library/providers/library_view_model.dart';
+import 'package:peerlink/app/presentation/pdf_viewer/screens/pdf_viewer_screen.dart';
 import 'package:provider/provider.dart';
 
 class SavedFileListItem extends StatelessWidget {
@@ -21,14 +22,18 @@ class SavedFileListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final viewModel = context.read<LibraryViewModel>();
+    final isPdf = file.fileName.toLowerCase().endsWith('.pdf');
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: ListTile(
-        // ADD THIS: Make the entire tile tappable to open the file
+        // The default tap action is now to open externally
         onTap: () => OpenFile.open(file.filePath),
         leading: const Icon(Icons.insert_drive_file, size: 40),
-        title: Text(file.fileName, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          file.fileName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: Text(
           'Received from: ${file.senderName}',
           style: TextStyle(color: Colors.grey.shade600),
@@ -36,6 +41,16 @@ class SavedFileListItem extends StatelessWidget {
         trailing: PopupMenuButton<String>(
           onSelected: (value) {
             switch (value) {
+              case 'open':
+                OpenFile.open(file.filePath);
+                break;
+              case 'open_in_app':
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => PdfViewerScreen(savedFile: file),
+                  ),
+                );
+                break;
               case 'details':
                 _showDetailsDialog(context);
                 break;
@@ -47,12 +62,36 @@ class SavedFileListItem extends StatelessWidget {
                 break;
             }
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'details', child: Text('Details')),
-            // REMOVED: The 'Open' option is no longer needed here
-            const PopupMenuItem(value: 'rename', child: Text('Rename')),
-            const PopupMenuItem(value: 'delete', child: Text('Delete')),
-          ],
+          itemBuilder: (context) {
+            // Build the menu items based on file type
+            List<PopupMenuEntry<String>> menuItems = [];
+
+            // Add the 'Open In-App' option only if it's a PDF
+            if (isPdf) {
+              menuItems.add(
+                const PopupMenuItem(
+                  value: 'open_in_app',
+                  child: Text('Open In-App'),
+                ),
+              );
+              menuItems.add(
+                const PopupMenuItem(
+                  value: 'open',
+                  child: Text('Open Externally'),
+                ),
+              );
+            }
+
+            // Add the rest of the options
+            menuItems.addAll([
+              const PopupMenuDivider(),
+              const PopupMenuItem(value: 'details', child: Text('Details')),
+              const PopupMenuItem(value: 'rename', child: Text('Rename')),
+              const PopupMenuItem(value: 'delete', child: Text('Delete')),
+            ]);
+
+            return menuItems;
+          },
         ),
       ),
     );
@@ -70,7 +109,9 @@ class SavedFileListItem extends StatelessWidget {
           children: [
             Text('Size: ${_formatBytes(file.fileSize)}'),
             const SizedBox(height: 8),
-            Text('Received on: ${DateFormat.yMMMd().add_jm().format(file.dateSaved)}'),
+            Text(
+              'Received on: ${DateFormat.yMMMd().add_jm().format(file.dateSaved)}',
+            ),
             const SizedBox(height: 8),
             Text('From: ${file.senderName}'),
           ],
@@ -86,12 +127,17 @@ class SavedFileListItem extends StatelessWidget {
   }
 
   // Dialog to confirm deletion
-  void _showDeleteConfirmationDialog(BuildContext context, LibraryViewModel viewModel) {
+  void _showDeleteConfirmationDialog(
+    BuildContext context,
+    LibraryViewModel viewModel,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete File'),
-        content: Text('Are you sure you want to delete "${file.fileName}"? This action cannot be undone.'),
+        content: Text(
+          'Are you sure you want to delete "${file.fileName}"? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -112,7 +158,9 @@ class SavedFileListItem extends StatelessWidget {
 
   // Dialog for renaming the file
   void _showRenameDialog(BuildContext context, LibraryViewModel viewModel) {
-    final controller = TextEditingController(text: file.fileName.split('.').first);
+    final controller = TextEditingController(
+      text: file.fileName.split('.').first,
+    );
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

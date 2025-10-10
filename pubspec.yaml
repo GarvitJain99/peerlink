@@ -45,6 +45,7 @@ dependencies:
   shared_preferences: ^2.5.3
   uuid: ^4.5.1
   intl: ^0.20.2
+  syncfusion_flutter_pdfviewer: ^31.1.23
 
 dev_dependencies:
   flutter_test:
