@@ -6,7 +6,7 @@ import 'package:peerlink/app/presentation/auth/providers/auth_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
 import 'package:peerlink/app/presentation/discovery/widgets/peer_list_item.dart';
 import 'package:permission_handler/permission_handler.dart';
-
+import 'package:peerlink/app/presentation/library/screens/library_screen.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({super.key});
@@ -19,7 +19,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     with WidgetsBindingObserver {
   StreamSubscription? _connectionRequestSubscription;
   StreamSubscription? _navigateToChatSubscription;
-  StreamSubscription? _closeChatSubscription; 
+  StreamSubscription? _closeChatSubscription;
   String _ownDeviceName = 'My Device';
   bool _isDialogShowing = false;
 
@@ -29,32 +29,35 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     WidgetsBinding.instance.addObserver(this);
     Future.microtask(() {
       final discoveryViewModel = context.read<DiscoveryViewModel>();
-      
-      _connectionRequestSubscription =
-          discoveryViewModel.uiConnectionRequestStream.listen((event) {
-        _showConnectionRequestDialog(
-          context,
-          event['id'],
-          event['info'].endpointName,
-        );
-      });
 
-      _navigateToChatSubscription =
-          discoveryViewModel.navigateToChatStream.listen((peer) {
-        if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) => TransferScreen(peer: peer),
-          ));
-        }
-      });
-      
+      _connectionRequestSubscription = discoveryViewModel
+          .uiConnectionRequestStream
+          .listen((event) {
+            _showConnectionRequestDialog(
+              context,
+              event['id'],
+              event['info'].endpointName,
+            );
+          });
+
+      _navigateToChatSubscription = discoveryViewModel.navigateToChatStream
+          .listen((peer) {
+            if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => TransferScreen(peer: peer),
+                ),
+              );
+            }
+          });
+
       // NEW: Listen for events that should close the chat screen
       _closeChatSubscription = discoveryViewModel.closeChatStream.listen((_) {
         if (mounted && !(ModalRoute.of(context)?.isCurrent ?? true)) {
           Navigator.of(context).pop();
         }
       });
-      
+
       _requestPermissionsAndStartScanning();
     });
   }
@@ -72,7 +75,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     WidgetsBinding.instance.removeObserver(this);
     _connectionRequestSubscription?.cancel();
     _navigateToChatSubscription?.cancel();
-    _closeChatSubscription?.cancel(); 
+    _closeChatSubscription?.cancel();
     Provider.of<DiscoveryViewModel>(context, listen: false).stopScanning();
     super.dispose();
   }
@@ -197,7 +200,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           ),
           const Divider(indent: 16, endIndent: 16),
           Expanded(
-            child: discoveryViewModel.isScanning &&
+            child:
+                discoveryViewModel.isScanning &&
                     discoveryViewModel.peers.isEmpty
                 ? Center(
                     child: Column(
@@ -230,17 +234,45 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (discoveryViewModel.isScanning) {
-            discoveryViewModel.stopScanning();
-          } else {
-            _startScan();
-          }
-        },
-        label: Text(discoveryViewModel.isScanning ? 'Stop' : 'Scan'),
-        icon: Icon(discoveryViewModel.isScanning ? Icons.stop : Icons.search),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Library Button
+            FloatingActionButton(
+              heroTag: 'library_button',
+              onPressed: () {
+                discoveryViewModel.stopScanning();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const LibraryScreen(),
+                  ),
+                );
+              },
+              tooltip: 'My Library',
+              child: const Icon(Icons.folder_copy_outlined),
+            ),
+
+            // Scan/Stop Button
+            FloatingActionButton.extended(
+              heroTag: 'scan_button',
+              onPressed: () {
+                if (discoveryViewModel.isScanning) {
+                  discoveryViewModel.stopScanning();
+                } else {
+                  _startScan();
+                }
+              },
+              label: Text(discoveryViewModel.isScanning ? 'Stop' : 'Scan'),
+              icon: Icon(
+                discoveryViewModel.isScanning ? Icons.stop : Icons.search,
+              ),
+            ),
+          ],
+        ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 }

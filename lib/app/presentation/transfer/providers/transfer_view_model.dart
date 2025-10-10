@@ -6,19 +6,30 @@ import 'package:nearby_connections/nearby_connections.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:peerlink/app/data/models/transfer_update_model.dart';
 import 'package:peerlink/app/data/services/p2p_service.dart';
+import 'package:peerlink/app/data/services/library_service.dart';
+import 'package:peerlink/app/data/models/saved_file_model.dart';
+import 'package:uuid/uuid.dart';
 
 class TransferViewModel extends ChangeNotifier {
   final P2pService _p2pService;
+  final LibraryService _libraryService;
   final String _peerId;
+  final String _peerName;
   StreamSubscription? _payloadSubscription;
   StreamSubscription? _payloadTransferSubscription;
+  final Uuid _uuid = Uuid();
 
   final Map<int, String> _pendingFilenames = {};
 
   final Map<int, TransferUpdate> _transfers = {};
   List<TransferUpdate> get transfers => _transfers.values.toList();
 
-  TransferViewModel(this._p2pService, this._peerId) {
+  TransferViewModel(
+    this._p2pService,
+    this._libraryService,
+    this._peerId,
+    this._peerName,
+  ) {
     _payloadSubscription = _p2pService.payloadStream.listen((event) {
       if (event['id'] == _peerId) {
         _handleIncomingPayload(event['payload']);
@@ -140,14 +151,23 @@ class TransferViewModel extends ChangeNotifier {
     final uriString = transfer.tempFilePath!;
 
     try {
-      // --- USE THE CORRECT HELPER METHOD FROM THE LIBRARY ---
       bool success = await Nearby().copyFileAndDeleteOriginal(
         uriString,
         newPath,
       );
-      // ---------------------------------------------------
 
       if (success) {
+        final savedFileRecord = SavedFile(
+          id: _uuid.v4(), 
+          fileName: transfer.fileName,
+          filePath: newPath,
+          fileSize: transfer.fileSize,
+          dateSaved: DateTime.now(), 
+          senderName: _peerName, 
+        );
+
+        await _libraryService.addFile(savedFileRecord);
+
         _transfers[payloadId] = transfer.copyWith(
           status: TransferStatus.saved,
           finalFilePath: newPath,

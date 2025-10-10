@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:peerlink/app/data/models/peer_device_model.dart';
+import 'package:peerlink/app/data/services/library_service.dart';
 import 'package:peerlink/app/data/services/p2p_service.dart';
 import 'package:peerlink/app/presentation/discovery/providers/discovery_view_model.dart';
 import 'package:peerlink/app/presentation/transfer/providers/transfer_view_model.dart';
@@ -16,7 +17,9 @@ class TransferScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => TransferViewModel(
         context.read<P2pService>(),
+        context.read<LibraryService>(),
         peer.id,
+        peer.name,
       ),
       child: Consumer<TransferViewModel>(
         builder: (context, viewModel, child) {
