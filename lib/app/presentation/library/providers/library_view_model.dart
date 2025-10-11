@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:peerlink/app/data/models/saved_file_model.dart';
 import 'package:peerlink/app/data/services/library_service.dart';
 
@@ -42,10 +43,36 @@ class LibraryViewModel extends ChangeNotifier {
     await loadFiles(); // Reload all files and re-apply filters
   }
 
+  // ADDED: Complete implementation for renaming a file.
   Future<void> renameFile(SavedFile file, String newName) async {
-    // ... (Your existing renameFile logic is good)
-    // After renaming, reload the files to reflect changes.
-    await loadFiles();
+    final extension = p.extension(file.fileName);
+    final newFileNameWithExt = '$newName$extension';
+
+    // Physically rename the file on the device's storage
+    final originalFileOnDisk = File(file.filePath);
+    if (await originalFileOnDisk.exists()) {
+      try {
+        final directory = p.dirname(file.filePath);
+        final newPath = p.join(directory, newFileNameWithExt);
+        await originalFileOnDisk.rename(newPath);
+
+        // Create an updated SavedFile object with the new name and path
+        final updatedFile = SavedFile(
+          id: file.id,
+          fileName: newFileNameWithExt,
+          filePath: newPath, // Update the path as well
+          fileSize: file.fileSize,
+          dateSaved: file.dateSaved,
+          senderName: file.senderName,
+        );
+
+        await _libraryService.updateFile(updatedFile);
+        await loadFiles(); // Reload to reflect changes in the UI
+      } catch (e) {
+        print("Error renaming file on disk: $e");
+        // Optionally, show an error message to the user
+      }
+    }
   }
 
   // --- New methods for UI interaction ---
@@ -82,7 +109,8 @@ class LibraryViewModel extends ChangeNotifier {
           case FilterType.video:
             return ['mp4', 'mov', 'avi', 'mkv'].contains(extension);
           case FilterType.doc:
-            return ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt'].contains(extension);
+            return ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt']
+                .contains(extension);
           default:
             return true;
         }
@@ -105,10 +133,12 @@ class LibraryViewModel extends ChangeNotifier {
         result.sort((a, b) => a.dateSaved.compareTo(b.dateSaved));
         break;
       case SortOption.nameAsc:
-        result.sort((a, b) => a.fileName.toLowerCase().compareTo(b.fileName.toLowerCase()));
+        result.sort((a, b) =>
+            a.fileName.toLowerCase().compareTo(b.fileName.toLowerCase()));
         break;
       case SortOption.nameDesc:
-        result.sort((a, b) => b.fileName.toLowerCase().compareTo(a.fileName.toLowerCase()));
+        result.sort((a, b) =>
+            b.fileName.toLowerCase().compareTo(a.fileName.toLowerCase()));
         break;
       case SortOption.sizeDesc:
         result.sort((a, b) => b.fileSize.compareTo(a.fileSize));
