@@ -68,7 +68,6 @@ class AuthService {
       );
       return _userFromFirebase(userCredential.user);
     } on FirebaseAuthException {
-      // Handle errors (e.g., weak password, email already in use)
       rethrow;
     }
   }
@@ -79,12 +78,10 @@ class AuthService {
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    // Note: No email format validation is needed here.
-    // Firebase handles checking if the email exists.
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
     } on FirebaseAuthException {
-      rethrow; // Let the ViewModel handle the error
+      rethrow; 
     }
   }
 }

@@ -25,7 +25,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel(); // Important to cancel the timer!
+    _timer?.cancel(); 
     super.dispose();
   }
 

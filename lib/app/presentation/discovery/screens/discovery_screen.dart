@@ -244,19 +244,16 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
             FloatingActionButton(
               heroTag: 'library_button',
               onPressed: () {
-                // First, stop scanning to prevent issues
+                // Stop scanning if user navigates to library
                 final discoveryViewModel = context.read<DiscoveryViewModel>();
                 discoveryViewModel.stopScanning();
                  context.read<LibraryViewModel>().loadFiles();
 
-                
-                // Navigate to the LibraryScreen and *wait for it to close*.
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => const LibraryScreen(),
                   ),
                 );
-                // After the LibraryScreen is closed, tell the LibraryViewModel to reload its files.
               },
               tooltip: 'My Library',
               child: const Icon(Icons.folder_copy_outlined),

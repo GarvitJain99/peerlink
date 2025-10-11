@@ -145,7 +145,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ? const CircularProgressIndicator()
                 : ElevatedButton(
                     onPressed: _submitForm,
-                    // Dynamic button text
                     child: Text(_isLoginMode ? 'Login' : 'Sign Up'),
                   ),
 

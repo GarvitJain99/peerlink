@@ -18,12 +18,8 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<P2pService>(create: (_) => P2pService()),
-        
-        // AuthViewModel must come before providers that depend on it.
         ChangeNotifierProvider(create: (context) => AuthViewModel()),
         
-        // MODIFIED: This ProxyProvider creates LibraryService using the user's UID.
-        // It rebuilds whenever the user logs in or out.
         ProxyProvider<AuthViewModel, LibraryService>(
           update: (context, authViewModel, previousLibraryService) =>
               LibraryService(authViewModel.currentUser?.uid),
@@ -35,9 +31,6 @@ void main() async {
               DiscoveryViewModel(p2pService),
         ),
         
-        // MODIFIED: This provider now gets the new user-specific LibraryService.
-        // The update function ensures that when the user changes, a new ViewModel is
-        // created and it immediately loads the files for that new user.
         ChangeNotifierProxyProvider<LibraryService, LibraryViewModel>(
           create: (context) => LibraryViewModel(context.read<LibraryService>()),
           update: (context, libraryService, previousLibraryViewModel) {
