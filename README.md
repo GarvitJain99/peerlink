@@ -86,10 +86,10 @@ lib/
 | Category              | Tools / Packages                               |
 | --------------------- | ---------------------------------------------- |
 | *Framework* | Flutter                                        |
-| *Authentication* | Firebase Authentication                        |
-| *P2P Communication* | nearby\_connections                             |
+| *Authentication* | firebase\_auth                        |
+| *P2P Communication* | nearby\_connections, permission\_handler                             |
 | *State Management* | provider                                       |
-| *File System* | file\_picker, path\_provider     |
+| *File System* | file\_picker, path\_provider, open\_file     |
 | *PDF Viewing* | syncfusion\_flutter\_pdfviewer                   |
 | *Local Storage* | shared\_preferences                             |
 | *UI & Utilities* | intl, uuid                                     |
