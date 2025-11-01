@@ -89,7 +89,7 @@ lib/
 | *Authentication* | Firebase Authentication                        |
 | *P2P Communication* | nearby\_connections                             |
 | *State Management* | provider                                       |
-| *File System* | file\_picker, path\_provider, open\_file\_plus     |
+| *File System* | file\_picker, path\_provider     |
 | *PDF Viewing* | syncfusion\_flutter\_pdfviewer                   |
 | *Local Storage* | shared\_preferences                             |
 | *UI & Utilities* | intl, uuid                                     |
